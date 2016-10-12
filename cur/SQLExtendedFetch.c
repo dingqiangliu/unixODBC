@@ -107,6 +107,12 @@
 
 #define SQL_FETCH_PART_ROWSET SQL_NO_DATA + 1
 
+#include <errno.h>
+extern int errno;
+char mfbuff[512];
+char mfbuff2[256];
+char mfname[128];
+
 SQLRETURN fetch_row( CLHSTMT cl_statement, int row_number, int offset )
 {
     SQLSMALLINT ret;
@@ -123,13 +129,17 @@ SQLRETURN fetch_row( CLHSTMT cl_statement, int row_number, int offset )
          * read the file buffer
          */
 
-        if ( fseek( cl_statement -> rowset_file,
-                    cl_statement -> buffer_length * row_number,
+        if ( fseeko( cl_statement -> rowset_file,
+                    (off_t)cl_statement -> buffer_length * (off_t)row_number,
                     SEEK_SET ))
         {
+int mfno=fileno(cl_statement -> rowset_file);
+sprintf(mfbuff2, "/proc/self/fd/%d", mfno);
+(void)readlink(mfbuff2,mfname,128);
+sprintf(mfbuff,"MFDBG1 row_num=%zu pos=%zu fno=%d fname=%s err=%s", row_number, cl_statement -> buffer_length * row_number, mfno, mfname, strerror(errno));
             cl_statement -> cl_connection -> dh.__post_internal_error( &cl_statement -> dm_statement -> error,
                 ERROR_S1000, 
-                "General error: fseek fails",
+                mfbuff,
                 cl_statement -> dm_statement -> connection -> 
                     environment -> requested_version );
             return SQL_ERROR;
@@ -369,13 +379,17 @@ SQLRETURN fetch_row( CLHSTMT cl_statement, int row_number, int offset )
              * write the file buffer
              */
 
-            if ( fseek( cl_statement -> rowset_file,
-                        cl_statement -> buffer_length * row_number,
+            if ( fseeko( cl_statement -> rowset_file,
+                        (off_t)(cl_statement -> buffer_length) * (off_t)row_number,
                         SEEK_SET ))
             {
+int mfno=fileno(cl_statement -> rowset_file);
+sprintf(mfbuff2, "/proc/self/fd/%d", mfno);
+(void)readlink(mfbuff2,mfname,128);
+sprintf(mfbuff,"MFDBG2 row_num=%d buff_length=%d pos=%zu fno=%d fname=%s err=%s", row_number, cl_statement->buffer_length, cl_statement -> buffer_length * row_number, mfno, mfname, strerror(errno));
                 cl_statement -> cl_connection -> dh.__post_internal_error( &cl_statement -> dm_statement -> error,
                     ERROR_S1000, 
-                    "General error: fseek fails",
+                    mfbuff,
                     cl_statement -> dm_statement -> connection -> 
                         environment -> requested_version );
                 return SQL_ERROR;
